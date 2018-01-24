@@ -4,6 +4,9 @@
 #include <math.h>
 #include "ukf.h"
 #include "tools.h"
+#include <fstream>
+#include <sstream>
+// #include <stdlib.h>
 
 using namespace std;
 
@@ -26,8 +29,23 @@ std::string hasData(std::string s) {
   return "";
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+  ofstream outfile;
+  if (argc > 1){
+  outfile.open(argv[1],ofstream::out);
+  outfile << "x_true" << ", ";
+  outfile << "y_true" << ", ";
+  outfile << "vx_true" << ", ";
+  outfile << "vy_true" << ", ";
+  outfile << "x_est" << ", ";
+  outfile << "y_est" << ", ";
+  outfile << "vx_est" << ", ";
+  outfile << "vy_est" << ", ";
+  outfile << "sensor" << ", ";
+  outfile << "nis" << endl;
+  }
+
   uWS::Hub h;
 
   // Create a Kalman Filter instance
@@ -38,7 +56,7 @@ int main()
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
 
-  h.onMessage([&ukf,&tools,&estimations,&ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&ukf,&tools,&estimations,&ground_truth, &outfile](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -90,7 +108,7 @@ int main()
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
           }
-          float x_gt;
+        float x_gt;
     	  float y_gt;
     	  float vx_gt;
     	  float vy_gt;
@@ -119,6 +137,21 @@ int main()
 
     	  double v1 = cos(yaw)*v;
     	  double v2 = sin(yaw)*v;
+
+        //write to outfile
+        if (outfile.is_open()){
+          outfile << fixed << setprecision(4) << x_gt << ", ";
+          outfile << fixed << setprecision(4) << y_gt << ", ";
+          outfile << fixed << setprecision(4) << vx_gt << ", ";
+          outfile << fixed << setprecision(4) << vy_gt << ", ";
+          outfile << fixed << setprecision(4) << p_x << ", ";
+          outfile << fixed << setprecision(4) << p_y << ", ";
+          outfile << fixed << setprecision(4) << v1 << ", ";
+          outfile << fixed << setprecision(4) << v2 << ", ";
+          outfile << sensor_type << ", ";
+          if (sensor_type.compare("L") == 0) outfile << fixed << setprecision(4) << ukf.NIS_Lidar_ << "\n";
+          else if (sensor_type.compare("R") == 0) outfile << fixed << setprecision(4) << ukf.NIS_Radar_ << "\n";
+        }
 
     	  estimate(0) = p_x;
     	  estimate(1) = p_y;
@@ -185,4 +218,9 @@ int main()
     return -1;
   }
   h.run();
+
+  if (outfile.is_open()) {
+  outfile.close();
+  }
+
 }
